@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -116,7 +117,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         SERVICE_RUN_ALL,
         handle_run_all,
         schema=cv.make_entity_service_schema(
-            {cv.Optional("category"): cv.string}
+            {vol.Optional("category"): cv.string}
         )
     )
     
