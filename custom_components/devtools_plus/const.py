@@ -140,3 +140,9 @@ No Zigbee signal data found
 {% endif %}""",
     },
 ]
+
+# Sidebar / Panel
+PANEL_TITLE: Final = "DevTools+"
+PANEL_ICON: Final = "mdi:flask-outline"
+PANEL_URL_PATH: Final = "devtools-plus"
+PANEL_TEMPLATE_URL: Final = "/developer-tools/template"
