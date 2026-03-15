@@ -1,0 +1,20 @@
+run_template:
+  name: Run Template
+  description: Execute a template sensor and update its state
+  target:
+    entity:
+      integration: devtools_plus
+      domain: sensor
+  fields: {}
+
+run_all:
+  name: Run All Templates
+  description: Execute all template sensors (optionally filtered by category)
+  fields:
+    category:
+      name: Category
+      description: Only run templates in this category
+      required: false
+      example: "Debugging"
+      selector:
+        text:

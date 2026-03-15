@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "DevTools Plus - Template Setup",
+        "description": "Wähle, wie du dein Template erstellen möchtest",
+        "data": {
+          "use_predefined": "Vordefiniertes Template verwenden"
+        }
+      },
+      "predefined": {
+        "title": "Vordefiniertes Template auswählen",
+        "description": "Wähle aus vorgefertigten Templates",
+        "data": {
+          "template_selection": "Template"
+        }
+      },
+      "custom": {
+        "title": "Eigenes Template erstellen",
+        "description": "Definiere dein eigenes Jinja2 Template",
+        "data": {
+          "name": "Name",
+          "icon": "Icon",
+          "category": "Kategorie",
+          "description": "Beschreibung",
+          "template": "Template Code"
+        }
+      }
+    },
+    "error": {
+      "invalid_template": "Ungültige Template-Syntax. Bitte überprüfe deinen Jinja2 Code."
+    },
+    "abort": {
+      "already_configured": "Dieses Template ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Template bearbeiten",
+        "description": "Template-Einstellungen anpassen",
+        "data": {
+          "name": "Name",
+          "icon": "Icon",
+          "category": "Kategorie",
+          "description": "Beschreibung",
+          "template": "Template Code"
+        }
+      }
+    },
+    "error": {
+      "invalid_template": "Ungültige Template-Syntax. Bitte überprüfe deinen Jinja2 Code."
+    }
+  }
+}

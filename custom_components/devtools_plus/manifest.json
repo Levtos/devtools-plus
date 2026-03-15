@@ -1,0 +1,12 @@
+{
+  "domain": "devtools_plus",
+  "name": "DevTools Plus",
+  "codeowners": ["@Levtos"],
+  "config_flow": true,
+  "documentation": "https://github.com/Levtos/devtools-plus",
+  "integration_type": "device",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Levtos/devtools-plus/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
