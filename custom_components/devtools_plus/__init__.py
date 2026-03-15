@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
@@ -23,11 +24,40 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
+FRONTEND_DIR = Path(__file__).parent / "frontend"
+STATIC_URL = "/devtools_plus_static"
+PANEL_URL = "devtools-plus"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up DevTools Plus component."""
     hass.data.setdefault(DOMAIN, {})
+
+    # Register static files for the frontend panel
+    try:
+        from homeassistant.components.http import StaticPathConfig  # HA 2024.3+
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), cache_headers=True)]
+        )
+    except (ImportError, AttributeError):
+        hass.http.register_static_path(STATIC_URL, str(FRONTEND_DIR), cache_headers=True)
+
+    # Register the sidebar panel
+    try:
+        from homeassistant.components.panel_custom import async_register_panel
+        await async_register_panel(
+            hass,
+            component_name="devtools-plus-panel",
+            sidebar_title="DevTools Plus",
+            sidebar_icon="mdi:tools",
+            frontend_url_path=PANEL_URL,
+            config={},
+            require_admin=False,
+            module_url=f"{STATIC_URL}/devtools-plus-panel.js",
+        )
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.warning("Could not register DevTools Plus panel: %s", err)
+
     return True
 
 
