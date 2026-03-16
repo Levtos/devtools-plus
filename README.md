@@ -36,6 +36,7 @@ DevTools Plus creates **virtual template devices** that:
 - **Categories & Tags** - Organize templates by purpose (Batteries, Climate, Network, etc.)
 - **Dashboard Integration** - Trigger templates from Lovelace cards
 - **Edit Anytime** - Modify templates via HA Options Flow (no YAML editing)
+- **Sidebar Shortcut** - Optional "DevTools+" sidebar entry opens HA's native Template Developer Tool
 
 ### What You Get
 Each template becomes:
@@ -151,6 +152,15 @@ Template: |
 3. Click the **⚙️ (gear icon)** → **Configure**
 4. Edit any field (name, icon, category, template code)
 5. Click **Submit**
+
+
+### Sidebar Access (DevTools+ Panel)
+
+After installing the integration, DevTools Plus registers a **DevTools+** item in the Home Assistant sidebar.
+
+- It opens the native **Developer Tools → Template** page in an iframe for quick access.
+- This is a shortcut panel (no monkey-patching of HA core menu entries).
+- Direct injection into Home Assistant's built-in Developer Tools tabs is not supported by a custom integration backend alone.
 
 ## 🎮 Usage
 
