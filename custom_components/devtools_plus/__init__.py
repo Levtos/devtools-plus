@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -35,8 +36,8 @@ async def _async_register_sidebar_panel(hass: HomeAssistant) -> None:
         return
 
     try:
-        frontend = hass.components.frontend
-        await frontend.async_register_built_in_panel(
+        async_register_built_in_panel(
+            hass,
             component_name="iframe",
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
@@ -47,6 +48,7 @@ async def _async_register_sidebar_panel(hass: HomeAssistant) -> None:
         hass.data[DOMAIN]["panel_registered"] = True
     except Exception as err:  # pragma: no cover - best effort for UI convenience
         _LOGGER.warning("Failed to register sidebar panel: %s", err)
+
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
