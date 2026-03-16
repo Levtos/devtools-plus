@@ -145,4 +145,6 @@ No Zigbee signal data found
 PANEL_TITLE: Final = "DevTools+"
 PANEL_ICON: Final = "mdi:flask-outline"
 PANEL_URL_PATH: Final = "devtools-plus"
-PANEL_TEMPLATE_URL: Final = "/developer-tools/template"
+PANEL_WEBCOMPONENT_NAME: Final = "devtools-plus-panel"
+STATIC_URL_PATH: Final = "/devtools_plus_static"
+PANEL_MODULE_URL: Final = f"{STATIC_URL_PATH}/devtools-plus-panel.js"

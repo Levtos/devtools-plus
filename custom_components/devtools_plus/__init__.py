@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components import panel_custom
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -16,11 +18,13 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     DOMAIN,
     PANEL_ICON,
-    PANEL_TEMPLATE_URL,
+    PANEL_MODULE_URL,
     PANEL_TITLE,
     PANEL_URL_PATH,
+    PANEL_WEBCOMPONENT_NAME,
     SERVICE_RUN_ALL,
     SERVICE_RUN_TEMPLATE,
+    STATIC_URL_PATH,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -31,24 +35,34 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 async def _async_register_sidebar_panel(hass: HomeAssistant) -> None:
-    """Register a sidebar panel that links to HA's native template devtool."""
+    """Register a sidebar panel for DevTools+ UI."""
     if hass.data[DOMAIN].get("panel_registered"):
         return
 
     try:
-        async_register_built_in_panel(
+        static_dir = Path(__file__).parent / "frontend"
+        await hass.http.async_register_static_paths(
+            [
+                StaticPathConfig(
+                    url_path=STATIC_URL_PATH,
+                    path=str(static_dir),
+                    cache_headers=False,
+                )
+            ]
+        )
+
+        panel_custom.async_register_panel(
             hass,
-            component_name="iframe",
+            webcomponent_name=PANEL_WEBCOMPONENT_NAME,
+            frontend_url_path=PANEL_URL_PATH,
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
-            frontend_url_path=PANEL_URL_PATH,
-            config={"url": PANEL_TEMPLATE_URL},
+            module_url=PANEL_MODULE_URL,
             require_admin=True,
         )
         hass.data[DOMAIN]["panel_registered"] = True
     except Exception as err:  # pragma: no cover - best effort for UI convenience
         _LOGGER.warning("Failed to register sidebar panel: %s", err)
-
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -98,7 +112,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Trigger state update
         state = hass.states.get(entity_id)
         if state:
-            # Force update by firing an event
             hass.bus.async_fire(f"{DOMAIN}_run_template", {"entity_id": entity_id})
 
     async def handle_run_all(call: ServiceCall) -> None:
@@ -155,7 +168,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove a config entry."""
-    # Remove from storage
     templates = hass.data[DOMAIN].get("templates", {})
     templates.pop(entry.entry_id, None)
 
