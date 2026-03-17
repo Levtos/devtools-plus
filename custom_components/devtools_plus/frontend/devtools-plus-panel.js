@@ -7,10 +7,9 @@ class DevToolsPlusPanel extends HTMLElement {
     this._hass = null;
     this._selectedId = null;
     this._sortBy = 'name';
-    this._localTemplates = [];
     this._filterCategory = 'all';
+    this._localTemplates = [];
     this._status = '';
-    this._previewResult = '';
     this._debugEnabled = localStorage.getItem(STORAGE_DEBUG_KEY) === '1';
     this._debugEvents = [];
   }
@@ -35,6 +34,49 @@ class DevToolsPlusPanel extends HTMLElement {
       this.render();
       this._attachEvents();
     }
+  }
+
+  _pushDebug(event, details = {}) {
+    if (!this._debugEnabled) return;
+    const stamp = new Date().toISOString();
+    const line = `[${stamp}] ${event} ${Object.keys(details).length ? JSON.stringify(details) : ''}`.trim();
+    this._debugEvents.push(line);
+    if (this._debugEvents.length > 300) this._debugEvents = this._debugEvents.slice(-300);
+    this._refreshDebugView();
+  }
+
+  _setDebugEnabled(enabled) {
+    this._debugEnabled = Boolean(enabled);
+    localStorage.setItem(STORAGE_DEBUG_KEY, this._debugEnabled ? '1' : '0');
+    if (this._debugEnabled) this._pushDebug('debug_enabled');
+    this._refreshDebugView();
+  }
+
+  _refreshDebugView() {
+    const toggleEl = this.querySelector('#debug-toggle');
+    const wrapEl = this.querySelector('#debug-wrap');
+    const logEl = this.querySelector('#debug-log');
+
+    if (toggleEl) toggleEl.checked = this._debugEnabled;
+    if (wrapEl) wrapEl.style.display = this._debugEnabled ? 'block' : 'none';
+    if (logEl) logEl.textContent = this._debugEvents.join('\n');
+  }
+
+  async _copyDebugLog() {
+    const content = this._debugEvents.join('\n') || 'No debug events captured.';
+    try {
+      await navigator.clipboard.writeText(content);
+      this._status = 'Debug-Log in Zwischenablage kopiert.';
+    } catch (_err) {
+      this._status = 'Kopieren fehlgeschlagen. Bitte manuell markieren.';
+    }
+    this._renderStatus();
+  }
+
+  _clearDebugLog() {
+    this._debugEvents = [];
+    this._pushDebug('debug_log_cleared');
+    this._renderStatus();
   }
 
   _loadLocalTemplates() {
@@ -77,6 +119,10 @@ class DevToolsPlusPanel extends HTMLElement {
       last_run: item.last_run || '',
     }));
     return [...this._integrationTemplates(), ...local];
+  }
+
+  _selectedItem() {
+    return this._allTemplates().find((i) => i.id === this._selectedId);
   }
 
   _categories(items) {
@@ -129,7 +175,7 @@ class DevToolsPlusPanel extends HTMLElement {
   _selectTemplate(id) {
     this._selectedId = id;
     this._pushDebug('select_template', { id });
-    const item = this._allTemplates().find((i) => i.id === id);
+    const item = this._selectedItem();
     if (!item) return;
 
     this.querySelector('#tpl-name').value = item.name || '';
@@ -149,94 +195,57 @@ class DevToolsPlusPanel extends HTMLElement {
     this.querySelector('#tpl-category').value = 'Custom';
     this.querySelector('#tpl-code').value = '';
     this.querySelector('#tpl-source').textContent = 'Quelle: Neu (lokal)';
-    this._previewResult = '';
     this._status = 'Neues Template gestartet.';
+    this._renderStatus();
     this._refreshTemplateList();
   }
 
-  _selectedItem() {
-    return this._allTemplates().find((i) => i.id === this._selectedId);
-  }
-
-  async _runSelected() {
-    const item = this._selectedItem();
-    if (!item) {
-      this._status = 'Bitte zuerst ein Template aus der Liste auswählen.';
-      this._refreshTemplateList();
-      return;
-    }
-
-    if (item.source === 'integration' && item.entity_id) {
-      try {
-        this._pushDebug('run_integration_template_start', { entity_id: item.entity_id });
-        await this._hass.callService('devtools_plus', 'run_template', { entity_id: item.entity_id });
-
-        await new Promise((resolve) => setTimeout(resolve, 400));
-
-        const updated = this._hass.states[item.entity_id];
-        if (updated) {
-          const lines = [
-            `Entity: ${item.entity_id}`,
-            `State: ${updated.state}`,
-            `Kategorie: ${updated.attributes.category || '-'}`,
-            `Last run: ${updated.attributes.last_run || '-'}`,
-            `Execution: ${updated.attributes.execution_time || '-'}`,
-            '',
-            updated.attributes.error ? `Fehler: ${updated.attributes.error}` : 'Ausführung erfolgreich.',
-          ];
-          this._previewResult = lines.join('\n');
-        } else {
-          this._previewResult = 'Template ausgeführt, aber Entity-State konnte nicht gelesen werden.';
-        }
-
-        this._status = `Ausgeführt: ${item.name}`;
-        this._pushDebug('run_integration_template_done', { entity_id: item.entity_id, state: updated?.state ?? null });
-      } catch (err) {
-        this._status = `Ausführungs-Fehler: ${err?.message || err}`;
-        this._pushDebug('run_integration_template_error', { error: String(err?.message || err) });
-        this._previewResult = '';
-      }
-
-      this._renderStatus();
-      this._refreshTemplateList();
-      return;
-    }
-
-    await this._renderPreview();
-  }
-
-  async _renderPreview() {
+  async _copyTemplateCode() {
     const code = this.querySelector('#tpl-code').value || '';
     if (!code.trim()) {
       this._status = 'Template-Code ist leer.';
-      this._refreshTemplateList();
+      this._renderStatus();
       return;
     }
 
     try {
-      this._pushDebug('preview_render_start', { length: code.length });
-      const response = await this._hass.callWS({
-        type: 'render_template',
-        template: code,
-      });
+      await navigator.clipboard.writeText(code);
+      this._status = 'Template-Code in Zwischenablage kopiert.';
+      this._pushDebug('copy_template_code', { length: code.length });
+    } catch (_err) {
+      this._status = 'Kopieren fehlgeschlagen. Bitte manuell markieren.';
+      this._pushDebug('copy_template_code_failed');
+    }
+    this._renderStatus();
+  }
 
-      if (typeof response === 'string') {
-        this._previewResult = response;
-      } else if (response && typeof response === 'object') {
-        this._previewResult = response.result ?? response.template ?? JSON.stringify(response, null, 2);
-      } else {
-        this._previewResult = String(response ?? '');
-      }
-
-      this._status = 'Template lokal gerendert (Preview).';
-      this._pushDebug('preview_render_done', { output_length: (this._previewResult || '').length });
-    } catch (err) {
-      this._previewResult = '';
-      this._status = `Render-Fehler: ${err?.message || err}`;
-      this._pushDebug('preview_render_error', { error: String(err?.message || err) });
+  async _openInDevtools() {
+    const code = this.querySelector('#tpl-code').value || '';
+    if (!code.trim()) {
+      this._status = 'Template-Code ist leer.';
+      this._renderStatus();
+      return;
     }
 
+    const encoded = encodeURIComponent(code);
+    const url = `/developer-tools/template?template=${encoded}`;
+
+    try {
+      await navigator.clipboard.writeText(code);
+      this._status = 'Öffne Devtools Template. Code wurde zusätzlich kopiert (Fallback).';
+    } catch (_err) {
+      this._status = 'Öffne Devtools Template. Kopieren fehlgeschlagen.';
+    }
+
+    this._pushDebug('open_in_devtools', {
+      selected_id: this._selectedId,
+      template_length: code.length,
+      url_length: url.length,
+    });
+
     this._renderStatus();
+    window.history.pushState(null, '', url);
+    window.dispatchEvent(new Event('location-changed'));
   }
 
   _saveLocal() {
@@ -246,7 +255,7 @@ class DevToolsPlusPanel extends HTMLElement {
 
     if (!name || !template.trim()) {
       this._status = 'Name und Template-Code sind Pflicht.';
-      this._refreshTemplateList();
+      this._renderStatus();
       return;
     }
 
@@ -273,8 +282,8 @@ class DevToolsPlusPanel extends HTMLElement {
       this._status = `Lokales Template gespeichert: ${name}`;
     }
 
-    this._saveLocalTemplates();
     this._pushDebug('save_local_template', { name, category });
+    this._saveLocalTemplates();
     this._refreshTemplateList();
   }
 
@@ -282,88 +291,35 @@ class DevToolsPlusPanel extends HTMLElement {
     const selected = this._selectedItem();
     if (!selected || selected.source !== 'local') {
       this._status = 'Nur lokale Templates können hier gelöscht werden.';
-      this._refreshTemplateList();
+      this._renderStatus();
       return;
     }
 
     const localId = selected.id.replace('local:', '');
     this._localTemplates = this._localTemplates.filter((t) => t.id !== localId);
     this._saveLocalTemplates();
-    this._pushDebug('save_local_template', { name, category });
+    this._pushDebug('delete_local_template', { id: localId });
+
     this._newTemplate();
     this._status = 'Lokales Template gelöscht.';
-    this._pushDebug('delete_local_template', { id: localId });
     this._refreshTemplateList();
   }
 
   _renderStatus() {
     const statusEl = this.querySelector('#status');
-    const resultEl = this.querySelector('#preview-result');
     if (statusEl) statusEl.textContent = this._status;
-    if (resultEl) resultEl.textContent = this._previewResult;
-  }
-
-
-  _pushDebug(event, details = {}) {
-    if (!this._debugEnabled) return;
-    const stamp = new Date().toISOString();
-    const line = `[${stamp}] ${event} ${Object.keys(details).length ? JSON.stringify(details) : ''}`.trim();
-    this._debugEvents.push(line);
-    if (this._debugEvents.length > 200) {
-      this._debugEvents = this._debugEvents.slice(-200);
-    }
-    this._refreshDebugView();
-  }
-
-  _setDebugEnabled(enabled) {
-    this._debugEnabled = Boolean(enabled);
-    localStorage.setItem(STORAGE_DEBUG_KEY, this._debugEnabled ? '1' : '0');
-    if (this._debugEnabled) {
-      this._pushDebug('debug_enabled');
-    }
-    this._refreshDebugView();
-  }
-
-  _refreshDebugView() {
-    const logEl = this.querySelector('#debug-log');
-    const wrapEl = this.querySelector('#debug-wrap');
-    const toggleEl = this.querySelector('#debug-toggle');
-
-    if (toggleEl) toggleEl.checked = this._debugEnabled;
-    if (wrapEl) wrapEl.style.display = this._debugEnabled ? 'block' : 'none';
-    if (logEl) logEl.textContent = this._debugEvents.join('\n');
-  }
-
-  async _copyDebugLog() {
-    const content = this._debugEvents.join('\n') || 'No debug events captured.';
-    try {
-      await navigator.clipboard.writeText(content);
-      this._status = 'Debug-Log in Zwischenablage kopiert.';
-    } catch (_err) {
-      this._status = 'Kopieren fehlgeschlagen. Bitte manuell markieren.';
-    }
-    this._renderStatus();
-  }
-
-  _clearDebugLog() {
-    this._debugEvents = [];
-    this._pushDebug('debug_log_cleared');
-    this._renderStatus();
   }
 
   _attachEvents() {
     this.querySelector('#btn-new')?.addEventListener('click', () => this._newTemplate());
     this.querySelector('#btn-save-local')?.addEventListener('click', () => this._saveLocal());
     this.querySelector('#btn-delete-local')?.addEventListener('click', () => this._deleteLocal());
-    this.querySelector('#btn-run')?.addEventListener('click', async () => this._runSelected());
-    this.querySelector('#btn-preview')?.addEventListener('click', async () => this._renderPreview());
-    this.querySelector('#btn-open-template')?.addEventListener('click', () => {
-      window.history.pushState(null, '', '/developer-tools/template');
-      window.dispatchEvent(new Event('location-changed'));
-    });
+    this.querySelector('#btn-open-in-devtools')?.addEventListener('click', async () => this._openInDevtools());
+    this.querySelector('#btn-copy-code')?.addEventListener('click', async () => this._copyTemplateCode());
 
     this.querySelector('#sort-by')?.addEventListener('change', (ev) => {
       this._sortBy = ev.target.value;
+      this._pushDebug('sort_changed', { value: this._sortBy });
       this._refreshTemplateList();
     });
 
@@ -397,8 +353,8 @@ class DevToolsPlusPanel extends HTMLElement {
           width: 100%; box-sizing: border-box; border-radius: 8px; padding: 8px;
           border: 1px solid var(--divider-color); background: var(--secondary-background-color); color: var(--primary-text-color);
         }
-        textarea { min-height: 260px; font-family: monospace; }
-        .list { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }
+        textarea { min-height: 320px; font-family: monospace; }
+        .list { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow: auto; }
         .item { border: 1px solid var(--divider-color); border-radius: 8px; padding: 10px; text-align: left; background: transparent; color: var(--primary-text-color); cursor: pointer; }
         .item.selected { border-color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 16%, transparent); }
         .title { display: block; font-weight: 600; }
@@ -408,8 +364,7 @@ class DevToolsPlusPanel extends HTMLElement {
         .primary { background: var(--primary-color); color: var(--text-primary-color, #fff); }
         .secondary { background: var(--divider-color); color: var(--primary-text-color); }
         .danger { background: #aa3a3a; color: #fff; }
-        .status { margin-top: 10px; font-size: 0.9rem; opacity: 0.9; }
-        .preview { margin-top: 10px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; padding: 10px; white-space: pre-wrap; min-height: 80px; }
+        .status { margin-top: 10px; font-size: 0.9rem; opacity: 0.9; white-space: pre-wrap; }
         .empty { opacity: 0.75; padding: 10px; }
         .debug-wrap { margin-top: 12px; }
         .debug-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -420,7 +375,7 @@ class DevToolsPlusPanel extends HTMLElement {
         <div class="layout">
           <section class="card">
             <div class="header">
-              <h2>Template-Bibliothek</h2>
+              <h2>Template-Sammlung</h2>
               <button id="btn-new" class="secondary">Neu</button>
             </div>
             <div class="filters">
@@ -435,8 +390,8 @@ class DevToolsPlusPanel extends HTMLElement {
 
           <section class="card">
             <div class="header">
-              <h2>Editor & Ausführung</h2>
-              <button id="btn-open-template" class="secondary">HA Template Devtool</button>
+              <h2>Lesezeichen-Template</h2>
+              <button id="btn-open-in-devtools" class="primary">In Devtools öffnen</button>
             </div>
             <div id="tpl-source" class="status">Quelle: Neu (lokal)</div>
             <div class="filters" style="grid-template-columns: 1fr 1fr; margin-top: 8px;">
@@ -446,14 +401,12 @@ class DevToolsPlusPanel extends HTMLElement {
             <textarea id="tpl-code" placeholder="Jinja2 Template Code"></textarea>
 
             <div class="actions">
-              <button id="btn-run" class="primary">Ausführen (ausgewählt)</button>
-              <button id="btn-preview" class="secondary">Preview rendern</button>
+              <button id="btn-copy-code" class="secondary">Code kopieren</button>
               <button id="btn-save-local" class="secondary">Lokal speichern</button>
               <button id="btn-delete-local" class="danger">Lokal löschen</button>
             </div>
 
             <div id="status" class="status"></div>
-            <div id="preview-result" class="preview"></div>
 
             <div class="debug-wrap">
               <div class="debug-toolbar">

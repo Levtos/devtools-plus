@@ -36,7 +36,7 @@ DevTools Plus creates **virtual template devices** that:
 - **Categories & Tags** - Organize templates by purpose (Batteries, Climate, Network, etc.)
 - **Dashboard Integration** - Trigger templates from Lovelace cards
 - **Edit Anytime** - Modify templates via HA Options Flow (no YAML editing)
-- **Template Library UI** - Sidebar panel with save/run/sort/category workflow
+- **Template Bookmark UI** - Sidebar panel for speichern/kategorisieren und 1-Klick Übergabe an Devtools
 
 ### What You Get
 Each template becomes:
@@ -162,8 +162,18 @@ After installing the integration, DevTools Plus registers a **DevTools+** item i
 - Du kannst Templates in einer Bibliothek **speichern, kategorisieren, sortieren und auswählen**.
 - Optionaler **Debug-Modus** im Panel protokolliert alle Aktionen (Preview/Run/Filter/Save) und erlaubt Copy/Paste des Logs für Support.
 - Integration-Templates (`sensor.devtools_plus_*`) und lokale Bibliothekseinträge werden gemeinsam angezeigt.
-- Ausführung: Integration-Templates via `devtools_plus.run_template`, lokale Entwürfe via Preview-Render im Panel.
+- Fokus-Flow: Auswahl aus Sammlung → **In Devtools öffnen** (Template wird per URL + Clipboard-Fallback übergeben).
 - Direkte Injection in Home Assistant's Core-Devtools-Tabs ist ohne Frontend-Patch nicht stabil unterstützt.
+
+
+### Planned: Status-Entity Mode (Design Note)
+
+Als nächster Ausbauschritt kann jedes Bookmark-Template optional eine Status-Entity erhalten, z. B.:
+- Gesamtstatus (`valid`, `unknown`, `unavailable`, `missing`)
+- Zählwerte pro Statusklasse
+- Letzter Prüfzeitpunkt und Vollausgabe in Attributen
+
+Hinweis: Für dieses Feature braucht es ein Trigger-Konzept (on-demand, Intervall oder eventbasiert), um unnötigen Runtime-Overhead zu vermeiden.
 
 ## 🎮 Usage
 
