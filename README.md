@@ -160,6 +160,7 @@ After installing the integration, DevTools Plus registers a **DevTools+** item i
 
 - It shows a dedicated **DevTools+ library UI** (kein iframe recursion / keine nested sidebars).
 - Du kannst Templates in einer Bibliothek **speichern, kategorisieren, sortieren und auswählen**.
+- Optionaler **Debug-Modus** im Panel protokolliert alle Aktionen (Preview/Run/Filter/Save) und erlaubt Copy/Paste des Logs für Support.
 - Integration-Templates (`sensor.devtools_plus_*`) und lokale Bibliothekseinträge werden gemeinsam angezeigt.
 - Ausführung: Integration-Templates via `devtools_plus.run_template`, lokale Entwürfe via Preview-Render im Panel.
 - Direkte Injection in Home Assistant's Core-Devtools-Tabs ist ohne Frontend-Patch nicht stabil unterstützt.

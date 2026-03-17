@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'devtools_plus.template_library.v1';
+const STORAGE_DEBUG_KEY = 'devtools_plus.debug_enabled.v1';
 
 class DevToolsPlusPanel extends HTMLElement {
   constructor() {
@@ -10,6 +11,8 @@ class DevToolsPlusPanel extends HTMLElement {
     this._filterCategory = 'all';
     this._status = '';
     this._previewResult = '';
+    this._debugEnabled = localStorage.getItem(STORAGE_DEBUG_KEY) === '1';
+    this._debugEvents = [];
   }
 
   set hass(hass) {
@@ -17,6 +20,7 @@ class DevToolsPlusPanel extends HTMLElement {
     if (!this._initialized) {
       this._initialized = true;
       this._loadLocalTemplates();
+      this._pushDebug('init_panel', { source: 'hass_setter' });
       this.render();
       this._attachEvents();
     }
@@ -27,6 +31,7 @@ class DevToolsPlusPanel extends HTMLElement {
     if (!this._initialized) {
       this._initialized = true;
       this._loadLocalTemplates();
+      this._pushDebug('init_panel', { source: 'connected_callback' });
       this.render();
       this._attachEvents();
     }
@@ -37,6 +42,7 @@ class DevToolsPlusPanel extends HTMLElement {
       this._localTemplates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     } catch (_err) {
       this._localTemplates = [];
+      this._pushDebug('load_local_templates_failed');
     }
   }
 
@@ -122,6 +128,7 @@ class DevToolsPlusPanel extends HTMLElement {
 
   _selectTemplate(id) {
     this._selectedId = id;
+    this._pushDebug('select_template', { id });
     const item = this._allTemplates().find((i) => i.id === id);
     if (!item) return;
 
@@ -137,6 +144,7 @@ class DevToolsPlusPanel extends HTMLElement {
 
   _newTemplate() {
     this._selectedId = null;
+    this._pushDebug('new_template');
     this.querySelector('#tpl-name').value = '';
     this.querySelector('#tpl-category').value = 'Custom';
     this.querySelector('#tpl-code').value = '';
@@ -160,6 +168,7 @@ class DevToolsPlusPanel extends HTMLElement {
 
     if (item.source === 'integration' && item.entity_id) {
       try {
+        this._pushDebug('run_integration_template_start', { entity_id: item.entity_id });
         await this._hass.callService('devtools_plus', 'run_template', { entity_id: item.entity_id });
 
         await new Promise((resolve) => setTimeout(resolve, 400));
@@ -181,8 +190,10 @@ class DevToolsPlusPanel extends HTMLElement {
         }
 
         this._status = `Ausgeführt: ${item.name}`;
+        this._pushDebug('run_integration_template_done', { entity_id: item.entity_id, state: updated?.state ?? null });
       } catch (err) {
         this._status = `Ausführungs-Fehler: ${err?.message || err}`;
+        this._pushDebug('run_integration_template_error', { error: String(err?.message || err) });
         this._previewResult = '';
       }
 
@@ -203,6 +214,7 @@ class DevToolsPlusPanel extends HTMLElement {
     }
 
     try {
+      this._pushDebug('preview_render_start', { length: code.length });
       const response = await this._hass.callWS({
         type: 'render_template',
         template: code,
@@ -217,9 +229,11 @@ class DevToolsPlusPanel extends HTMLElement {
       }
 
       this._status = 'Template lokal gerendert (Preview).';
+      this._pushDebug('preview_render_done', { output_length: (this._previewResult || '').length });
     } catch (err) {
       this._previewResult = '';
       this._status = `Render-Fehler: ${err?.message || err}`;
+      this._pushDebug('preview_render_error', { error: String(err?.message || err) });
     }
 
     this._renderStatus();
@@ -260,6 +274,7 @@ class DevToolsPlusPanel extends HTMLElement {
     }
 
     this._saveLocalTemplates();
+    this._pushDebug('save_local_template', { name, category });
     this._refreshTemplateList();
   }
 
@@ -274,8 +289,10 @@ class DevToolsPlusPanel extends HTMLElement {
     const localId = selected.id.replace('local:', '');
     this._localTemplates = this._localTemplates.filter((t) => t.id !== localId);
     this._saveLocalTemplates();
+    this._pushDebug('save_local_template', { name, category });
     this._newTemplate();
     this._status = 'Lokales Template gelöscht.';
+    this._pushDebug('delete_local_template', { id: localId });
     this._refreshTemplateList();
   }
 
@@ -284,6 +301,54 @@ class DevToolsPlusPanel extends HTMLElement {
     const resultEl = this.querySelector('#preview-result');
     if (statusEl) statusEl.textContent = this._status;
     if (resultEl) resultEl.textContent = this._previewResult;
+  }
+
+
+  _pushDebug(event, details = {}) {
+    if (!this._debugEnabled) return;
+    const stamp = new Date().toISOString();
+    const line = `[${stamp}] ${event} ${Object.keys(details).length ? JSON.stringify(details) : ''}`.trim();
+    this._debugEvents.push(line);
+    if (this._debugEvents.length > 200) {
+      this._debugEvents = this._debugEvents.slice(-200);
+    }
+    this._refreshDebugView();
+  }
+
+  _setDebugEnabled(enabled) {
+    this._debugEnabled = Boolean(enabled);
+    localStorage.setItem(STORAGE_DEBUG_KEY, this._debugEnabled ? '1' : '0');
+    if (this._debugEnabled) {
+      this._pushDebug('debug_enabled');
+    }
+    this._refreshDebugView();
+  }
+
+  _refreshDebugView() {
+    const logEl = this.querySelector('#debug-log');
+    const wrapEl = this.querySelector('#debug-wrap');
+    const toggleEl = this.querySelector('#debug-toggle');
+
+    if (toggleEl) toggleEl.checked = this._debugEnabled;
+    if (wrapEl) wrapEl.style.display = this._debugEnabled ? 'block' : 'none';
+    if (logEl) logEl.textContent = this._debugEvents.join('\n');
+  }
+
+  async _copyDebugLog() {
+    const content = this._debugEvents.join('\n') || 'No debug events captured.';
+    try {
+      await navigator.clipboard.writeText(content);
+      this._status = 'Debug-Log in Zwischenablage kopiert.';
+    } catch (_err) {
+      this._status = 'Kopieren fehlgeschlagen. Bitte manuell markieren.';
+    }
+    this._renderStatus();
+  }
+
+  _clearDebugLog() {
+    this._debugEvents = [];
+    this._pushDebug('debug_log_cleared');
+    this._renderStatus();
   }
 
   _attachEvents() {
@@ -304,11 +369,19 @@ class DevToolsPlusPanel extends HTMLElement {
 
     this.querySelector('#category-filter')?.addEventListener('change', (ev) => {
       this._filterCategory = ev.target.value;
+      this._pushDebug('filter_category_changed', { value: this._filterCategory });
       this._refreshTemplateList();
     });
 
+    this.querySelector('#debug-toggle')?.addEventListener('change', (ev) => {
+      this._setDebugEnabled(ev.target.checked);
+    });
+    this.querySelector('#btn-copy-debug')?.addEventListener('click', async () => this._copyDebugLog());
+    this.querySelector('#btn-clear-debug')?.addEventListener('click', () => this._clearDebugLog());
+
     this._newTemplate();
     this._refreshTemplateList();
+    this._refreshDebugView();
   }
 
   render() {
@@ -338,6 +411,9 @@ class DevToolsPlusPanel extends HTMLElement {
         .status { margin-top: 10px; font-size: 0.9rem; opacity: 0.9; }
         .preview { margin-top: 10px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; padding: 10px; white-space: pre-wrap; min-height: 80px; }
         .empty { opacity: 0.75; padding: 10px; }
+        .debug-wrap { margin-top: 12px; }
+        .debug-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .debug-log { background: #0b0f16; border: 1px solid var(--divider-color); border-radius: 8px; padding: 8px; white-space: pre-wrap; min-height: 80px; max-height: 220px; overflow: auto; font-family: monospace; font-size: 0.8rem; }
         @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
       </style>
       <div class="wrap">
@@ -378,6 +454,17 @@ class DevToolsPlusPanel extends HTMLElement {
 
             <div id="status" class="status"></div>
             <div id="preview-result" class="preview"></div>
+
+            <div class="debug-wrap">
+              <div class="debug-toolbar">
+                <label><input type="checkbox" id="debug-toggle" /> Debug-Modus</label>
+                <button id="btn-copy-debug" class="secondary">Debug kopieren</button>
+                <button id="btn-clear-debug" class="secondary">Debug leeren</button>
+              </div>
+              <div id="debug-wrap" style="display:none;">
+                <div id="debug-log" class="debug-log"></div>
+              </div>
+            </div>
           </section>
         </div>
       </div>
