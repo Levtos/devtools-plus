@@ -36,7 +36,7 @@ DevTools Plus creates **virtual template devices** that:
 - **Categories & Tags** - Organize templates by purpose (Batteries, Climate, Network, etc.)
 - **Dashboard Integration** - Trigger templates from Lovelace cards
 - **Edit Anytime** - Modify templates via HA Options Flow (no YAML editing)
-- **Sidebar Shortcut** - Sidebar panel with quick actions for template debugging
+- **Template Library UI** - Sidebar panel with save/run/sort/category workflow
 
 ### What You Get
 Each template becomes:
@@ -158,10 +158,11 @@ Template: |
 
 After installing the integration, DevTools Plus registers a **DevTools+** item in the Home Assistant sidebar.
 
-- It shows a lightweight **DevTools+ start page** (no iframe recursion / no nested sidebars).
-- Includes quick actions to jump to **Developer Tools → Template** or **Actions**.
-- Includes a button to trigger `devtools_plus.run_all` directly from the panel.
-- Direct injection into Home Assistant's built-in Developer Tools tabs is not supported by a custom integration backend alone.
+- It shows a dedicated **DevTools+ library UI** (kein iframe recursion / keine nested sidebars).
+- Du kannst Templates in einer Bibliothek **speichern, kategorisieren, sortieren und auswählen**.
+- Integration-Templates (`sensor.devtools_plus_*`) und lokale Bibliothekseinträge werden gemeinsam angezeigt.
+- Ausführung: Integration-Templates via `devtools_plus.run_template`, lokale Entwürfe via Preview-Render im Panel.
+- Direkte Injection in Home Assistant's Core-Devtools-Tabs ist ohne Frontend-Patch nicht stabil unterstützt.
 
 ## 🎮 Usage
 

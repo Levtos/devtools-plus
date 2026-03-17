@@ -51,7 +51,7 @@ async def _async_register_sidebar_panel(hass: HomeAssistant) -> None:
             ]
         )
 
-        panel_custom.async_register_panel(
+        await panel_custom.async_register_panel(
             hass,
             webcomponent_name=PANEL_WEBCOMPONENT_NAME,
             frontend_url_path=PANEL_URL_PATH,
