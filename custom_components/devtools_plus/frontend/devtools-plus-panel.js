@@ -159,8 +159,34 @@ class DevToolsPlusPanel extends HTMLElement {
     }
 
     if (item.source === 'integration' && item.entity_id) {
-      await this._hass.callService('devtools_plus', 'run_template', { entity_id: item.entity_id });
-      this._status = `Ausgeführt: ${item.name}`;
+      try {
+        await this._hass.callService('devtools_plus', 'run_template', { entity_id: item.entity_id });
+
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        const updated = this._hass.states[item.entity_id];
+        if (updated) {
+          const lines = [
+            `Entity: ${item.entity_id}`,
+            `State: ${updated.state}`,
+            `Kategorie: ${updated.attributes.category || '-'}`,
+            `Last run: ${updated.attributes.last_run || '-'}`,
+            `Execution: ${updated.attributes.execution_time || '-'}`,
+            '',
+            updated.attributes.error ? `Fehler: ${updated.attributes.error}` : 'Ausführung erfolgreich.',
+          ];
+          this._previewResult = lines.join('\n');
+        } else {
+          this._previewResult = 'Template ausgeführt, aber Entity-State konnte nicht gelesen werden.';
+        }
+
+        this._status = `Ausgeführt: ${item.name}`;
+      } catch (err) {
+        this._status = `Ausführungs-Fehler: ${err?.message || err}`;
+        this._previewResult = '';
+      }
+
+      this._renderStatus();
       this._refreshTemplateList();
       return;
     }
@@ -177,11 +203,19 @@ class DevToolsPlusPanel extends HTMLElement {
     }
 
     try {
-      const result = await this._hass.callWS({
+      const response = await this._hass.callWS({
         type: 'render_template',
         template: code,
       });
-      this._previewResult = String(result || '');
+
+      if (typeof response === 'string') {
+        this._previewResult = response;
+      } else if (response && typeof response === 'object') {
+        this._previewResult = response.result ?? response.template ?? JSON.stringify(response, null, 2);
+      } else {
+        this._previewResult = String(response ?? '');
+      }
+
       this._status = 'Template lokal gerendert (Preview).';
     } catch (err) {
       this._previewResult = '';
