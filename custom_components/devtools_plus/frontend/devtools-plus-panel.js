@@ -219,35 +219,6 @@ class DevToolsPlusPanel extends HTMLElement {
     this._renderStatus();
   }
 
-  async _openInDevtools() {
-    const code = this.querySelector('#tpl-code').value || '';
-    if (!code.trim()) {
-      this._status = 'Template-Code ist leer.';
-      this._renderStatus();
-      return;
-    }
-
-    const encoded = encodeURIComponent(code);
-    const url = `/developer-tools/template?template=${encoded}`;
-
-    try {
-      await navigator.clipboard.writeText(code);
-      this._status = 'Öffne Devtools Template. Code wurde zusätzlich kopiert (Fallback).';
-    } catch (_err) {
-      this._status = 'Öffne Devtools Template. Kopieren fehlgeschlagen.';
-    }
-
-    this._pushDebug('open_in_devtools', {
-      selected_id: this._selectedId,
-      template_length: code.length,
-      url_length: url.length,
-    });
-
-    this._renderStatus();
-    window.history.pushState(null, '', url);
-    window.dispatchEvent(new Event('location-changed'));
-  }
-
   _saveLocal() {
     const name = this.querySelector('#tpl-name').value.trim();
     const category = this.querySelector('#tpl-category').value.trim() || 'Custom';
@@ -314,7 +285,6 @@ class DevToolsPlusPanel extends HTMLElement {
     this.querySelector('#btn-new')?.addEventListener('click', () => this._newTemplate());
     this.querySelector('#btn-save-local')?.addEventListener('click', () => this._saveLocal());
     this.querySelector('#btn-delete-local')?.addEventListener('click', () => this._deleteLocal());
-    this.querySelector('#btn-open-in-devtools')?.addEventListener('click', async () => this._openInDevtools());
     this.querySelector('#btn-copy-code')?.addEventListener('click', async () => this._copyTemplateCode());
 
     this.querySelector('#sort-by')?.addEventListener('change', (ev) => {
@@ -391,7 +361,6 @@ class DevToolsPlusPanel extends HTMLElement {
           <section class="card">
             <div class="header">
               <h2>Lesezeichen-Template</h2>
-              <button id="btn-open-in-devtools" class="primary">In Devtools öffnen</button>
             </div>
             <div id="tpl-source" class="status">Quelle: Neu (lokal)</div>
             <div class="filters" style="grid-template-columns: 1fr 1fr; margin-top: 8px;">
