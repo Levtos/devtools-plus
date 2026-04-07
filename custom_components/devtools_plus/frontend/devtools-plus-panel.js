@@ -227,24 +227,22 @@ class DevToolsPlusPanel extends HTMLElement {
       return;
     }
 
-    const encoded = encodeURIComponent(code);
-    const url = `/developer-tools/template?template=${encoded}`;
+    // HA's developer tools template editor persists its content in localStorage.
+    // Writing to this key before navigating causes the editor to load with our template.
+    localStorage.setItem('ha-dev-tools-template', code);
 
+    // Copy to clipboard as fallback in case the localStorage key differs between HA versions.
     try {
       await navigator.clipboard.writeText(code);
-      this._status = 'Öffne Devtools Template. Code wurde zusätzlich kopiert (Fallback).';
+      this._status = 'Template in Devtools geöffnet. Auch in Zwischenablage kopiert (Fallback).';
     } catch (_err) {
-      this._status = 'Öffne Devtools Template. Kopieren fehlgeschlagen.';
+      this._status = 'Template in Devtools geöffnet.';
     }
 
-    this._pushDebug('open_in_devtools', {
-      selected_id: this._selectedId,
-      template_length: code.length,
-      url_length: url.length,
-    });
-
+    this._pushDebug('open_in_devtools', { selected_id: this._selectedId, template_length: code.length });
     this._renderStatus();
-    window.history.pushState(null, '', url);
+
+    window.history.pushState(null, '', '/developer-tools/template');
     window.dispatchEvent(new Event('location-changed'));
   }
 
@@ -391,7 +389,7 @@ class DevToolsPlusPanel extends HTMLElement {
           <section class="card">
             <div class="header">
               <h2>Lesezeichen-Template</h2>
-              <button id="btn-open-in-devtools" class="primary">In Devtools öffnen</button>
+              <button id="btn-open-in-devtools" class="primary">In Devtools öffnen ↗</button>
             </div>
             <div id="tpl-source" class="status">Quelle: Neu (lokal)</div>
             <div class="filters" style="grid-template-columns: 1fr 1fr; margin-top: 8px;">
