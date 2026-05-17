@@ -17,4 +17,4 @@ run_all:
       required: false
       example: "Debugging"
       selector:
-        text:
+        text: {}
